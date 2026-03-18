@@ -4,58 +4,39 @@ pipeline {
     }
 
     tools {
-        // These names MUST match Manage Jenkins -> Tools exactly
+        // Ensure these match your "Manage Jenkins > Tools" names exactly
         jdk 'java17'
         maven 'maven3'
     }
 
     stages {
-        stage('Checkout from SCM') {
+        stage('Checkout Java Branch') {
             steps {
-                echo 'Cloning repository...'
-                git branch: 'main', 
+                echo 'Cloning the JAVA version of the repository...'
+                // We specify the 'java' branch because 'main' is now .NET
+                git branch: 'java', 
                     credentialsId: 'github', 
-                    url: 'https://github.com/sandeepaksm/example-voting-app.git'
+                    url: 'https://github.com/dockersamples/example-voting-app.git'
                 
-                // Diagnostic: Show the root files
-                sh 'ls -F'
+                sh 'ls -F worker/'
             }
         }
 
         stage('Build Maven Application') {
             steps {
-                script {
-                    echo 'Searching for pom.xml...'
-                    // Locates the directory containing the pom.xml automatically
-                    def findPom = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
-                    
-                    if (findPom) {
-                        // Extract the directory path from the file path
-                        def pomDir = findPom.split('/pom.xml')[0]
-                        if (pomDir == ".") pomDir = "" // Handle root directory case
-                        
-                        echo "Found Maven project in directory: ${pomDir}"
-                        
-                        dir(pomDir) {
-                            sh 'mvn clean install -DskipTests'
-                        }
-                    } else {
-                        error "FAILURE: No pom.xml found in the repository. Is this a Java project?"
-                    }
+                echo 'Building the Java Worker...'
+                dir('worker') {
+                    // This will now find the pom.xml successfully
+                    sh 'mvn clean install -DskipTests'
                 }
             }
         }
 
         stage('Maven Test') {
             steps {
-                script {
-                    def findPom = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
-                    if (findPom) {
-                        def pomDir = findPom.split('/pom.xml')[0]
-                        dir(pomDir) {
-                            sh 'mvn test'
-                        }
-                    }
+                echo 'Running Unit Tests...'
+                dir('worker') {
+                    sh 'mvn test'
                 }
             }
         }
@@ -63,13 +44,12 @@ pipeline {
 
     post {
         success {
-            echo 'Build and Test completed successfully!'
+            echo 'SUCCESS: The Java worker was built correctly!'
         }
         failure {
-            echo 'Pipeline failed. Check the logs to see if pom.xml was found.'
+            echo 'FAILURE: Check if the "worker" folder contains a pom.xml.'
         }
         cleanup {
-            echo 'Cleaning up workspace...'
             cleanWs()
         }
     }
