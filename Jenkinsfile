@@ -1,55 +1,68 @@
 pipeline {
-    agent {
-        label 'Jenkins-agent'
-    }
+    agent { label 'Jenkins-agent' }
 
     tools {
-        // Ensure these match your "Manage Jenkins > Tools" names exactly
         jdk 'java17'
         maven 'maven3'
     }
 
     stages {
-        stage('Checkout Java Branch') {
+        stage('Checkout') {
             steps {
-                echo 'Cloning the JAVA version of the repository...'
-                // We specify the 'java' branch because 'main' is now .NET
-                git branch: 'java', 
-                    credentialsId: 'github', 
-                    url: 'https://github.com/dockersamples/example-voting-app.git'
-                
-                sh 'ls -F worker/'
+                // We use the 'scm' variable so it uses the repo YOU configured in the Jenkins UI
+                checkout scm
+                sh 'ls -R'
             }
         }
 
-        stage('Build Maven Application') {
+        stage('Build Application') {
             steps {
-                echo 'Building the Java Worker...'
-                dir('worker') {
-                    // This will now find the pom.xml successfully
-                    sh 'mvn clean install -DskipTests'
+                script {
+                    // Search for Maven (Java)
+                    def pomPath = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
+                    
+                    if (pomPath) {
+                        def pomDir = pomPath.replace('/pom.xml', '')
+                        if (pomDir == "") pomDir = "."
+                        echo "Detected Java project at: ${pomDir}"
+                        dir(pomDir) {
+                            sh 'mvn clean install -DskipTests'
+                        }
+                    } 
+                    // Search for .NET (C#) if Java isn't found
+                    else {
+                        def dotnetPath = sh(script: 'find . -name "*.csproj" | head -n 1', returnStdout: true).trim()
+                        if (dotnetPath) {
+                            def dotnetDir = dotnetPath.split('/')[0..-2].join('/')
+                            echo "Detected .NET project at: ${dotnetDir}. Note: Requires .NET SDK on Agent."
+                            dir(dotnetDir) {
+                                // Only run if dotnet is installed on agent
+                                sh 'dotnet build'
+                            }
+                        } else {
+                            error "No Java (pom.xml) or .NET (.csproj) files found!"
+                        }
+                    }
                 }
             }
         }
 
-        stage('Maven Test') {
+        stage('Tests') {
             steps {
-                echo 'Running Unit Tests...'
-                dir('worker') {
-                    sh 'mvn test'
+                script {
+                    def pomPath = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
+                    if (pomPath) {
+                        dir(pomPath.replace('/pom.xml', '')) {
+                            sh 'mvn test'
+                        }
+                    }
                 }
             }
         }
     }
 
     post {
-        success {
-            echo 'SUCCESS: The Java worker was built correctly!'
-        }
-        failure {
-            echo 'FAILURE: Check if the "worker" folder contains a pom.xml.'
-        }
-        cleanup {
+        always {
             cleanWs()
         }
     }
