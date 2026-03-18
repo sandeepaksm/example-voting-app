@@ -4,7 +4,7 @@ pipeline {
     }
 
     tools {
-        // Ensure these match your "Manage Jenkins > Tools" names exactly
+        // These names MUST match Manage Jenkins -> Tools exactly
         jdk 'java17'
         maven 'maven3'
     }
@@ -17,7 +17,7 @@ pipeline {
                     credentialsId: 'github', 
                     url: 'https://github.com/sandeepaksm/example-voting-app.git'
                 
-                // This command helps us debug by showing the file structure
+                // Diagnostic: Show the root files
                 sh 'ls -F'
             }
         }
@@ -25,13 +25,22 @@ pipeline {
         stage('Build Maven Application') {
             steps {
                 script {
-                    // We check if the 'worker' directory exists before entering
-                    if (fileExists('worker/pom.xml')) {
-                        dir('worker') {
+                    echo 'Searching for pom.xml...'
+                    // Locates the directory containing the pom.xml automatically
+                    def findPom = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
+                    
+                    if (findPom) {
+                        // Extract the directory path from the file path
+                        def pomDir = findPom.split('/pom.xml')[0]
+                        if (pomDir == ".") pomDir = "" // Handle root directory case
+                        
+                        echo "Found Maven project in directory: ${pomDir}"
+                        
+                        dir(pomDir) {
                             sh 'mvn clean install -DskipTests'
                         }
                     } else {
-                        error "Could not find pom.xml in the worker directory. Check the file structure in the Checkout stage log."
+                        error "FAILURE: No pom.xml found in the repository. Is this a Java project?"
                     }
                 }
             }
@@ -39,8 +48,14 @@ pipeline {
 
         stage('Maven Test') {
             steps {
-                dir('worker') {
-                    sh 'mvn test'
+                script {
+                    def findPom = sh(script: 'find . -name "pom.xml" -not -path "*/target/*" | head -n 1', returnStdout: true).trim()
+                    if (findPom) {
+                        def pomDir = findPom.split('/pom.xml')[0]
+                        dir(pomDir) {
+                            sh 'mvn test'
+                        }
+                    }
                 }
             }
         }
@@ -51,10 +66,10 @@ pipeline {
             echo 'Build and Test completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Please check the logs above.'
+            echo 'Pipeline failed. Check the logs to see if pom.xml was found.'
         }
         cleanup {
-            echo 'Cleaning up workspace for the next run...'
+            echo 'Cleaning up workspace...'
             cleanWs()
         }
     }
