@@ -27,13 +27,20 @@ pipeline {
 
         stage('Build Maven Application') {
             steps {
-                sh 'mvn clean install -DskipTests'
+                echo 'Moving into the worker directory and building...'
+                // Use the 'dir' block to switch folders
+                dir('worker') { 
+                    sh 'mvn clean install -DskipTests'
+                }
             }
         }
 
         stage('Maven Test') {
             steps {
-                sh 'mvn test'
+                echo 'Running tests in worker directory...'
+                dir('worker') {
+                    sh 'mvn test'
+                }
             }
         }
     }
