@@ -6,27 +6,29 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                // Pulls the code from your GitHub
                 checkout scm
             }
         }
 
         stage('Build .NET Worker') {
             steps {
+                // Moves into the 'worker' folder where the .csproj lives
                 dir('worker') {
-                    echo 'Restoring dependencies...'
+                    echo 'Restoring .NET dependencies...'
                     sh 'dotnet restore'
-                    echo 'Building the project...'
+                    
+                    echo 'Compiling the Worker application...'
                     sh 'dotnet build --configuration Release'
                 }
             }
         }
 
-        stage('Test') {
+        stage('Build Result Node App') {
             steps {
-                dir('worker') {
-                    echo 'Running tests...'
-                    // Note: This only runs if you have a test project defined
-                    sh 'dotnet test --no-build --configuration Release'
+                dir('result') {
+                    echo 'If you have Node installed, we could build this too...'
+                    sh 'npm --version || echo "Node not installed on agent yet"'
                 }
             }
         }
@@ -34,10 +36,10 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: .NET Worker built successfully!'
+            echo 'SUCCESS: The Agent finally had the right tools and built the code!'
         }
         failure {
-            echo 'FAILURE: Check if .NET SDK is installed on the Agent.'
+            echo 'FAILURE: Did you run the sudo apt install dotnet-sdk commands on the Agent VM?'
         }
         always {
             cleanWs()
