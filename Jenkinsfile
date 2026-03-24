@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'Jenkins_Agent' } // Running on your VM01-VPC agent
+    agent { label 'Jenkins-Agent' } // Running on your VM01-VPC agent
 
     tools {
         maven 'Maven3' // Name from Manage Jenkins -> Tools
