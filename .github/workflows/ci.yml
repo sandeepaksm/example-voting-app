@@ -27,6 +27,14 @@ jobs:
           push: true
           tags: sandeep2862/voting-app-vote:latest
 
+      - name: Scan vote image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sandeep2862/voting-app-vote:latest
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+
       - name: Build and push result image
         uses: docker/build-push-action@v6
         with:
@@ -34,9 +42,26 @@ jobs:
           push: true
           tags: sandeep2862/voting-app-result:latest
 
+      - name: Scan result image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sandeep2862/voting-app-result:latest
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+
       - name: Build and push worker image
         uses: docker/build-push-action@v6
         with:
           context: ./worker
           push: true
           tags: sandeep2862/voting-app-worker:latest
+
+      - name: Scan worker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: sandeep2862/voting-app-worker:latest
+          format: table
+          exit-code: 0
+          severity: HIGH,CRITICAL
+
